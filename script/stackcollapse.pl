@@ -65,7 +65,7 @@ foreach (<>) {
 	next if $nr++ < $headerlines;
 	chomp;
 
-	if (m/^\s*(\d+)+$/) {
+	if (m/^\s*(\d+)+\s*$/) {
 		remember_stack(join(";", @stack), $1);
 		@stack = ();
 		next;
