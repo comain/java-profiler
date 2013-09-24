@@ -1,0 +1,11 @@
+Light-weight java profiler from google, see http://jeremymanson.blogspot.com/2013/07/lightweight-asynchronous-sampling.html
+The call stack generated is later used to generate a FlameGraph, see https://github.com/brendangregg/FlameGraph
+
+Usage: 
+1. startEnv.sh -agentpath:/tmp/liblagent.so=file=traces.txt
+2. trace file is generated during vm shutdown
+3. use script/graph.sh generate svg file
+
+TODO:
+1. online trace file dump 
+2. add native stack
