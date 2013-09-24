@@ -20,9 +20,9 @@ void StackTracesPrinter::PrintStackTraces(TraceData *traces, int length) {
     if (traces[i].count != 0) {
       total += traces[i].count;
       count++;
-      fprintf(file_, "%"PRIdPTR" ", traces[i].count);
       PrintStackTrace(&traces[i]);
-      fprintf(file_, "\n");
+      fprintf(file_, "%lu ", traces[i].count);
+      fprintf(file_, "\n\n");
     }
   }
   fprintf(file_, "Total trace count = %d, Total traces = %d\n", total, count);
@@ -237,7 +237,7 @@ void StackTracesPrinter::PrintStackTrace(TraceData *trace) {
     return;
   }
 
-  fprintf(file_, "%d ", t->num_frames);
+//fprintf(file_, "%d ", t->num_frames);
   for (int i = 0; i < t->num_frames; i++) {
     JVMPI_CallFrame *curr_frame = &(t->frames[i]);
     PrintStackFrame(curr_frame);
