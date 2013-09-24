@@ -31,7 +31,7 @@ class Profiler {
 
   void Stop();
 
-  void DumpToFile(FILE *file);
+  void DumpToFile(FILE *file, jvmtiEnv* jvmti_env);
 
  private:
   jvmtiEnv *jvmti_;
@@ -39,6 +39,8 @@ class Profiler {
   SignalHandler handler_;
 
   struct sigaction old_action_;
+
+  static pthread_spinlock_t lock;
 
   static TraceData traces_[kMaxStackTraces];
 

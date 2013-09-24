@@ -67,6 +67,35 @@ void JNICALL OnVMInit(jvmtiEnv *jvmti, JNIEnv *jni_env, jthread thread) {
     jclass klass = classList[i];
     CreateJMethodIDsForClass(jvmti, klass);
   }
+
+
+  //create dumper thread
+  jclass klass = jni_env->FindClass("java/lang/Thread");
+  if (!klass) {
+      fprintf(stderr, "Failed to start dumper thread\n");
+      return ;
+  }
+  jmethodID method = jni_env->GetMethodID(klass, "<init>", "(Ljava/lang/String;)V");
+  if (!method) {
+      fprintf(stderr, "Failed to start dumper thread\n");
+      return ;
+  }
+  jstring name = jni_env->NewStringUTF("AgentDumperThread");
+  if (!name) {
+      fprintf(stderr, "Failed to start dumper thread\n");
+      return ;
+  }
+  jthread dump_thread = jni_env->NewObject(klass, method, name);
+  if (!dump_thread) {
+      fprintf(stderr, "Failed to start dumper thread\n");
+      return ;
+  }
+  if (jvmti->RunAgentThread(dump_thread,&_dumper_interface,prof,JVMTI_THREAD_NORM_PRIORITY) !=0)
+  {
+      fprintf(stderr, "Failed to start dumper thread\n");
+      return ;
+  }
+
   prof->Start();
 }
 
@@ -86,7 +115,7 @@ void JNICALL OnVMDeath(jvmtiEnv *jvmti_env, JNIEnv *jni_env) {
   IMPLICITLY_USE(jni_env);
 
   prof->Stop();
-  prof->DumpToFile(Globals::OutFile);
+  prof->DumpToFile(Globals::OutFile, NULL);
 }
 
 static bool PrepareJvmti(jvmtiEnv *jvmti) {
@@ -248,6 +277,7 @@ AGENTEXPORT jint JNICALL Agent_OnLoad(JavaVM *vm, char *options,
 
   prof = new Profiler(jvmti);
 
+          
   return 0;
 }
 

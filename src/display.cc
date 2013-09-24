@@ -4,6 +4,7 @@
 #include <jni.h>
 #include <jvmti.h>
 #include <string.h>
+#include <time.h>
 
 #include <algorithm>
 #include <string>
@@ -26,6 +27,7 @@ void StackTracesPrinter::PrintStackTraces(TraceData *traces, int length) {
     }
   }
   fprintf(file_, "Total trace count = %d, Total traces = %d\n", total, count);
+  fflush(file_);
 }
 
 typedef std::pair<jint, jmethodID> PairCallFrame;
@@ -243,3 +245,9 @@ void StackTracesPrinter::PrintStackTrace(TraceData *trace) {
     PrintStackFrame(curr_frame);
   }
 }
+
+void StackTracesPrinter::PrintHeader() {
+  fprintf(file_, "dumpTime = %lu\n", time(NULL));
+}
+
+

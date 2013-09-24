@@ -17,6 +17,7 @@ __thread JNIEnv * Accessors::env_;
 ASGCTType Asgct::asgct_;
 
 TraceData Profiler::traces_[kMaxStackTraces];
+pthread_spinlock_t Profiler::lock;
 
 JVMPI_CallFrame Profiler::frame_buffer_[kMaxStackTraces][kMaxFramesToCapture];
 
@@ -54,6 +55,11 @@ static uint64_t CalculateHash(JVMPI_CallTrace *trace, int skip) {
 }
 
 void Profiler::Handle(int signum, siginfo_t *info, void *context) {
+
+  if (pthread_spin_trylock(&lock) !=0) {
+      return;
+  }
+
   IMPLICITLY_USE(signum);
   IMPLICITLY_USE(info);
   ErrnoRaii err_storage;  // stores and resets errno
@@ -62,6 +68,7 @@ void Profiler::Handle(int signum, siginfo_t *info, void *context) {
   if (env == NULL) {
     // native / JIT / GC thread, which isn't attached to the JVM.
     failures_[0]++;
+    pthread_spin_unlock(&lock);
     return;
   }
 
@@ -86,6 +93,7 @@ void Profiler::Handle(int signum, siginfo_t *info, void *context) {
   if (trace.num_frames < 0) {
     int idx = -trace.num_frames;
     if (idx > kNumCallTraceErrors) {
+      pthread_spin_unlock(&lock);
       return;
     }
     failures_[idx]++;
@@ -113,6 +121,7 @@ void Profiler::Handle(int signum, siginfo_t *info, void *context) {
 
       traces_[i].trace.frames = fb;
       traces_[i].trace.num_frames = trace.num_frames;
+      pthread_spin_unlock(&lock);
       return;
     }
 
@@ -120,6 +129,7 @@ void Profiler::Handle(int signum, siginfo_t *info, void *context) {
         (memcmp(traces_[i].trace.frames, trace.frames,
                 sizeof(JVMPI_CallFrame) * kMaxFramesToCapture) == 0)) {
       NoBarrier_AtomicIncrement(&(traces_[i].count), 1);
+      pthread_spin_unlock(&lock);
       return;
     }
 
@@ -170,6 +180,9 @@ bool Profiler::Start() {
   // old_action_ is stored, but never used.  This is in case of future
   // refactorings that need it.
   old_action_ = handler_.SetAction(&Profiler::Handle);
+
+  pthread_spin_init (&lock, PTHREAD_PROCESS_PRIVATE);
+
   return handler_.SetSigprofInterval(0, usec_wait);
 }
 
@@ -177,6 +190,7 @@ void Profiler::Stop() {
   handler_.SetSigprofInterval(0, 0);
   // Breaks encapsulation, but whatever.
   signal(SIGPROF, SIG_IGN);
+  pthread_spin_destroy(&lock);
 }
 
 static int CompareTraceData(const void *v1, const void *v2) {
@@ -185,11 +199,16 @@ static int CompareTraceData(const void *v1, const void *v2) {
   return tr1->count > tr2->count ? 1 : (tr1->count < tr2->count ? -1 : 0);
 }
 
-void Profiler::DumpToFile(FILE *file) {
+void Profiler::DumpToFile(FILE *file, jvmtiEnv* jvmti_env) {
+  pthread_spin_lock(&lock);
   qsort(traces_, kMaxStackTraces, sizeof(TraceData), &CompareTraceData);
 
-  StackTracesPrinter printer(file, jvmti_);
+  if (jvmti_env == NULL) {
+      jvmti_env = jvmti_;
+  }
+  StackTracesPrinter printer(file, jvmti_env);
 
+  printer.PrintHeader();
   printer.PrintStackTraces(traces_, kMaxStackTraces);
   printer.PrintLeafHistogram(traces_, kMaxStackTraces);
 
@@ -216,4 +235,10 @@ void Profiler::DumpToFile(FILE *file) {
           failures_[-kNotWalkableFrameJava], failures_[-kUnknownState],
           failures_[-kTicksThreadExit], failures_[-kDeoptHandler],
           failures_[-kSafepoint]);
+
+  //clean up buffer
+  memset(traces_, 0, sizeof(traces_));
+  memset(frame_buffer_, 0, sizeof(frame_buffer_));
+  memset(failures_, 0, sizeof(failures_));
+  pthread_spin_unlock(&lock);
 }

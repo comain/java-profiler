@@ -25,6 +25,8 @@ class StackTracesPrinter {
 
   void PrintLeafHistogram(TraceData *traces, int length);
 
+  void PrintHeader();
+
  private:
   FILE *file_;
 
