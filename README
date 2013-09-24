@@ -5,7 +5,7 @@ Usage:
 1. startEnv.sh -agentpath:/tmp/liblagent.so=file=traces.txt
 2. trace file is generated during vm shutdown
 3. use script/graph.sh generate svg file
+4. incremental dump is enabled by setting -agentpath:/tmp/liblagent.so=file=traces.txt,interval=60
 
 TODO:
-1. online trace file dump 
-2. add native stack
+1. add native stack

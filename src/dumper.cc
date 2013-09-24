@@ -19,8 +19,13 @@ void _dumper_interface (jvmtiEnv* jvmti_env, JNIEnv* jni_env, void* arg)
         return;
     } 
 
+    int interval = Globals::DumpInterval;
+    if (interval == 0) {
+        interval = 600;
+    }
+
     while (1) {
-        sleep (kIntervalSeconds);
+        sleep (interval);
         p->DumpToFile(Globals::OutFile, jvmti_env);
     }
     return ;

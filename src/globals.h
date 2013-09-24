@@ -230,12 +230,10 @@ static const int kMaxFramesToCapture = 128;
 // Location where the data are dumped.
 static const char kDefaultOutFile[] = "traces.txt";
 
-// dumper interval
-static const int kIntervalSeconds = 60;
-
 class Globals {
  public:
   static FILE *OutFile;
+  static int DumpInterval;
 };
 
 void _dumper_interface (jvmtiEnv* jvmti_env, JNIEnv* jni_env, void* arg);

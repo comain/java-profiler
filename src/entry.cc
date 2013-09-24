@@ -11,6 +11,7 @@
 
 static Profiler *prof;
 FILE *Globals::OutFile;
+int Globals::DumpInterval;
 
 void JNICALL OnThreadStart(jvmtiEnv *jvmti_env, JNIEnv *jni_env,
                            jthread thread) {
@@ -68,32 +69,33 @@ void JNICALL OnVMInit(jvmtiEnv *jvmti, JNIEnv *jni_env, jthread thread) {
     CreateJMethodIDsForClass(jvmti, klass);
   }
 
-
   //create dumper thread
-  jclass klass = jni_env->FindClass("java/lang/Thread");
-  if (!klass) {
-      fprintf(stderr, "Failed to start dumper thread\n");
-      return ;
-  }
-  jmethodID method = jni_env->GetMethodID(klass, "<init>", "(Ljava/lang/String;)V");
-  if (!method) {
-      fprintf(stderr, "Failed to start dumper thread\n");
-      return ;
-  }
-  jstring name = jni_env->NewStringUTF("AgentDumperThread");
-  if (!name) {
-      fprintf(stderr, "Failed to start dumper thread\n");
-      return ;
-  }
-  jthread dump_thread = jni_env->NewObject(klass, method, name);
-  if (!dump_thread) {
-      fprintf(stderr, "Failed to start dumper thread\n");
-      return ;
-  }
-  if (jvmti->RunAgentThread(dump_thread,&_dumper_interface,prof,JVMTI_THREAD_NORM_PRIORITY) !=0)
-  {
-      fprintf(stderr, "Failed to start dumper thread\n");
-      return ;
+  if (Globals::DumpInterval > 0) {
+      jclass klass = jni_env->FindClass("java/lang/Thread");
+      if (!klass) {
+          fprintf(stderr, "Failed to start dumper thread\n");
+          return ;
+      }
+      jmethodID method = jni_env->GetMethodID(klass, "<init>", "(Ljava/lang/String;)V");
+      if (!method) {
+          fprintf(stderr, "Failed to start dumper thread\n");
+          return ;
+      }
+      jstring name = jni_env->NewStringUTF("AgentDumperThread");
+      if (!name) {
+          fprintf(stderr, "Failed to start dumper thread\n");
+          return ;
+      }
+      jthread dump_thread = jni_env->NewObject(klass, method, name);
+      if (!dump_thread) {
+          fprintf(stderr, "Failed to start dumper thread\n");
+          return ;
+      }
+      if (jvmti->RunAgentThread(dump_thread,&_dumper_interface,prof,JVMTI_THREAD_NORM_PRIORITY) !=0)
+      {
+          fprintf(stderr, "Failed to start dumper thread\n");
+          return ;
+      }
   }
 
   prof->Start();
@@ -193,7 +195,7 @@ static bool RegisterJvmti(jvmtiEnv *jvmti) {
 
 #define POSITIVE(x) (static_cast<size_t>(x > 0 ? x : 0))
 
-static void SetFileFromOption(char *equals) {
+static char* SetFileFromOption(char *equals) {
   char *name_begin = equals + 1;
   char *name_end;
   if ((name_end = strchr(equals, ',')) == NULL) {
@@ -216,11 +218,27 @@ static void SetFileFromOption(char *equals) {
   }
 
   delete[] file_name;
+  return name_end;
+}
+
+static char* SetIntervalFromOption(char *equals) {
+  char *name_begin = equals + 1;
+  char *name_end;
+  if ((name_end = strchr(equals, ',')) == NULL) {
+    name_end = equals + strlen(equals);
+  }
+  size_t len = POSITIVE(name_end - name_begin);
+  char *interval = new char[len];
+  strncpy(interval, name_begin, len);
+  int intervalValue = atoi(interval);
+  Globals::DumpInterval = intervalValue;
+  delete[] interval;
+  return name_end;
 }
 
 static void ParseArguments(char *options) {
   char *key = options;
-  for (char *next = options; next != NULL;
+  for (char *next = options; ;
        next = strchr((key = next + 1), ',')) {
     char *equals = strchr(key, '=');
     if (equals == NULL) {
@@ -228,7 +246,14 @@ static void ParseArguments(char *options) {
       continue;
     }
     if (strncmp(key, "file", POSITIVE(equals - key)) == 0) {
-      SetFileFromOption(equals);
+      next=SetFileFromOption(equals);
+    }
+    if (strncmp(key, "interval", POSITIVE(equals - key)) == 0) {
+      next=SetIntervalFromOption(equals);
+    }
+
+    if (next == NULL || *next == '\0') {
+        break;
     }
   }
 
