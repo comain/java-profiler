@@ -195,7 +195,7 @@ static bool RegisterJvmti(jvmtiEnv *jvmti) {
 
 #define POSITIVE(x) (static_cast<size_t>(x > 0 ? x : 0))
 
-static char* SetFileFromOption(char *equals) {
+static void SetFileFromOption(char *equals) {
   char *name_begin = equals + 1;
   char *name_end;
   if ((name_end = strchr(equals, ',')) == NULL) {
@@ -218,10 +218,9 @@ static char* SetFileFromOption(char *equals) {
   }
 
   delete[] file_name;
-  return name_end;
 }
 
-static char* SetIntervalFromOption(char *equals) {
+static void SetIntervalFromOption(char *equals) {
   char *name_begin = equals + 1;
   char *name_end;
   if ((name_end = strchr(equals, ',')) == NULL) {
@@ -233,28 +232,30 @@ static char* SetIntervalFromOption(char *equals) {
   int intervalValue = atoi(interval);
   Globals::DumpInterval = intervalValue;
   delete[] interval;
-  return name_end;
 }
 
 static void ParseArguments(char *options) {
+  if (options == NULL) {
+      return;
+  }
   char *key = options;
-  for (char *next = options; ;
-       next = strchr((key = next + 1), ',')) {
-    char *equals = strchr(key, '=');
-    if (equals == NULL) {
-      fprintf(stderr, "No value for key %s\n", key);
-      continue;
-    }
-    if (strncmp(key, "file", POSITIVE(equals - key)) == 0) {
-      next=SetFileFromOption(equals);
-    }
-    if (strncmp(key, "interval", POSITIVE(equals - key)) == 0) {
-      next=SetIntervalFromOption(equals);
-    }
+  for (char *next = strchr(options,','); *key != '\0';
+          next = strchr((key = next + 1), ',')) {
+      char *equals = strchr(key, '=');
+      if (equals == NULL) {
+          fprintf(stderr, "No value for key %s\n", key);
+          continue;
+      }
+      if (strncmp(key, "file", POSITIVE(equals - key)) == 0) {
+          SetFileFromOption(equals);
+      }
+      if (strncmp(key, "interval", POSITIVE(equals - key)) == 0) {
+          SetIntervalFromOption(equals);
+      }
 
-    if (next == NULL || *next == '\0') {
-        break;
-    }
+      if (next == NULL || *next == '\0') {
+          break;
+      }
   }
 
   if (Globals::OutFile == NULL) {
