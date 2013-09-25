@@ -202,7 +202,8 @@ static void SetFileFromOption(char *equals) {
     name_end = equals + strlen(equals);
   }
   size_t len = POSITIVE(name_end - name_begin);
-  char *file_name = new char[len];
+  char *file_name = new char[len+1];
+  file_name[len]='\0';
   strncpy(file_name, name_begin, len);
   if (strcmp(file_name, "stderr") == 0) {
     Globals::OutFile = stderr;
@@ -227,7 +228,8 @@ static void SetIntervalFromOption(char *equals) {
     name_end = equals + strlen(equals);
   }
   size_t len = POSITIVE(name_end - name_begin);
-  char *interval = new char[len];
+  char *interval = new char[len+1];
+  interval[len]='\0';
   strncpy(interval, name_begin, len);
   int intervalValue = atoi(interval);
   Globals::DumpInterval = intervalValue;
