@@ -1,0 +1,5 @@
+../script/split.sh <trace.txt
+../script/stackcollapse.pl 1380093276.txt >1380093276.merge
+../script/stackcollapse.pl 1380092976.txt >1380093276.merge
+../script/flamegraph.pl 1380093276.merge >1380093276.svg
+../script/flamegraph.pl 1380092976.merge >1380093276.svg
